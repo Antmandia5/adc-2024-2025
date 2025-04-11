@@ -31,14 +31,12 @@ public class CreateWorkSheetResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response createOrUpdateWorkSheet(CreateWorkSheetData data) {
-        // Validação dos dados obrigatórios
         if (data == null || data.authToken == null || data.reference == null ||
             data.description == null || data.targetType == null || data.adjudicationStatus == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity("Dados insuficientes para a operação.").build();
         }
         
-        // Converter o token de autenticação
         AuthToken callerToken;
         try {
             callerToken = gson.fromJson(data.authToken, AuthToken.class);
@@ -54,12 +52,8 @@ public class CreateWorkSheetResource {
                     .entity("Token expirado.").build();
         }
         
-        // Verificar qual o role do utilizador que está a efetuar a operação
         String callerRole = callerToken.getRole();
         
-        // Para a criação de uma folha de obra, apenas BACKOFFICE pode criar uma folha nova
-        // Já para atualização, utilizadores com role PARTNER só podem atualizar o estado da obra,
-        // desde que a folha esteja atribuída à sua conta.
         boolean isCreation = false;
         Key worksheetKey = worksheetKeyFactory.newKey(data.reference);
         Entity worksheetEntity = datastore.get(worksheetKey);
@@ -85,8 +79,6 @@ public class CreateWorkSheetResource {
             } else {
                 // Atualizar a folha existente
                 wsBuilder = Entity.newBuilder(worksheetEntity);
-                // BACKOFFICE pode atualizar qualquer atributo; PARTNER pode apenas atualizar o estado da obra 
-                // (e opcionalmente as observações)
                 if (callerRole.equalsIgnoreCase("BACKOFFICE")) {
                     wsBuilder.set("description", data.description)
                              .set("targetType", data.targetType)
@@ -95,7 +87,6 @@ public class CreateWorkSheetResource {
             }
             
             // Se a folha de obra for adjudicada, preenche os atributos adicionais.
-            // Apenas BACKOFFICE pode definir estes valores.
             if (data.adjudicationStatus.equalsIgnoreCase("ADJUDICADO")) {
                 if (callerRole.equalsIgnoreCase("BACKOFFICE")) {
                     if (data.adjudicationDate != null) {
@@ -123,8 +114,7 @@ public class CreateWorkSheetResource {
                         wsBuilder.set("observations", data.observations);
                     }
                 } else if (callerRole.equalsIgnoreCase("PARTNER")) {
-                    // Se o utilizador for PARTNER, ele só pode atualizar o estado da obra 
-                    // (e opcionalmente as observações) E apenas se a folha já estiver atribuída à sua conta.
+                    // Se o utilizador for PARTNER, ele só pode atualizar o estado da obra
                     String assignedPartner = worksheetEntity != null && worksheetEntity.contains("partnerAccount")
                             ? worksheetEntity.getString("partnerAccount")
                             : null;
@@ -144,7 +134,6 @@ public class CreateWorkSheetResource {
                 }
             } else {
                 // Se não está adjudicada, os atributos adicionais não devem ser preenchidos.
-                // Pode ser interessante remover quaisquer valores antigos.
                 wsBuilder.set("adjudicationDate", "")
                          .set("expectedStartDate", "")
                          .set("expectedCompletionDate", "")
@@ -155,7 +144,6 @@ public class CreateWorkSheetResource {
                          .set("observations", "");
             }
             
-            // Construir a entidade final e fazer o commit
             Entity wsEntity = wsBuilder.build();
             txn.put(wsEntity);
             txn.commit();

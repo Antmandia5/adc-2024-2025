@@ -1,5 +1,6 @@
 package pt.unl.fct.di.apdc.firstwebapp.resources;
 
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.codec.digest.DigestUtils;
@@ -38,7 +39,7 @@ public class LoginResource {
     private static final String LOG_MESSAGE_LOGIN_SUCCESSFUL = "Login successful by user: ";
     private static final String LOG_MESSAGE_WRONG_PASSWORD = "Wrong password for: ";
     private static final String USER_PWD = "user_pwd";
-    private static final String USER_ROLE = "user_role";  // atributo armazenado na entidade
+    private static final String USER_ROLE = "user_role";
     private static final Logger LOG = Logger.getLogger(LoginResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     private static final com.google.cloud.datastore.KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
@@ -58,7 +59,6 @@ public class LoginResource {
         LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 
         Key userKey = userKeyFactory.newKey(data.username);
-        // Código para log e estatísticas omitido para foco no login
 
         Transaction txn = datastore.newTransaction();
         try {
@@ -72,21 +72,24 @@ public class LoginResource {
 
             String hashedPWD = user.getString(USER_PWD);
             if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
-                // Login bem-sucedido
-                // Extraímos o role registrado na entidade (por exemplo, "enduser" ou "ADMIN")
                 String role = user.contains(USER_ROLE) ? user.getString(USER_ROLE) : "enduser";
 
                 // Cria o token com os dados do user e o role
-                AuthToken token = new AuthToken(data.username, role);
+                String newTokenID = UUID.randomUUID().toString();
+                AuthToken token = new AuthToken(data.username, role, newTokenID);
+                
+                // Adicionar token a utilizador
+                Entity updatedUser = Entity.newBuilder(user)
+                		.set("activeTokenID", newTokenID)
+                		.build();
+                txn.put(updatedUser);
 
-                // É possível incluir também a criação dos logs e a atualização das estatísticas do utilizador
                 txn.commit();
 
                 LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);
-                // Devolve o token em formato JSON
-                return Response.ok(g.toJson(token)).build();
+                
+                return Response.ok(token.toJSON(), MediaType.TEXT_PLAIN).build();
             } else {
-                // Em caso de password incorreta, processa a falha no login (atualizar estatísticas, por exemplo)
                 txn.commit();
                 LOG.warning(LOG_MESSAGE_WRONG_PASSWORD + data.username);
                 return Response.status(Status.FORBIDDEN).entity(MESSAGE_INVALID_CREDENTIALS).build();

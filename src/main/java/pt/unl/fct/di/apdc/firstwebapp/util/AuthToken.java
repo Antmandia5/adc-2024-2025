@@ -39,11 +39,11 @@ public class AuthToken {
 
 	}
 	
-	public AuthToken(String username, String role) {
+	public AuthToken(String username, String role, String tokenID) {
 		long now = System.currentTimeMillis();
 		this.username = username;
 		this.role = role;
-		this.tokenID = UUID.randomUUID().toString();
+		this.tokenID = tokenID;
 		this.validity = new Validity(now, now+ EXPIRATION_TIME);
 	}
 	
@@ -63,12 +63,8 @@ public class AuthToken {
         return validity;
     }
     
-    /**
-     * Método opcional para serializar o token em JSON.
-     * Se estiver a usar uma biblioteca como Gson, pode simplesmente converter a instância.
-     */
     public String toJSON() {
-        return String.format("{\"user\":\"%s\", \"role\":\"%s\", \"tokenID\":\"%s\", " +
+        return String.format("{\"username\":\"%s\", \"role\":\"%s\", \"tokenID\":\"%s\", " +
                              "\"validity\":{\"validFrom\":%d, \"validTo\":%d, \"verifier\":\"%s\"}}",
                              username, role, tokenID, validity.getValidFrom(), validity.getValidTo(), validity.getVerifier());
     }

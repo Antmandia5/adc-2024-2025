@@ -8,7 +8,7 @@ public class RegisterData {
 	public String email;
 	public String name;
 	public String phone;
-	public String profile;// ("público" ou "privado")
+	public String profile;
 	
 	public RegisterData() {
 	}

@@ -1,11 +1,11 @@
 package pt.unl.fct.di.apdc.firstwebapp.resources;
 
-import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreException;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.Transaction;
 import com.google.gson.Gson;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,11 +24,9 @@ public class SessionLogoutResource {
 
     private static final Logger LOG = Logger.getLogger(SessionLogoutResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
+    private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
+            datastore.newKeyFactory().setKind("User");
     private final Gson gson = new Gson();
-    
-    // Para armazenar tokens revogados, cria-se um KeyFactory para a entidade "RevokedToken".
-    private static final com.google.cloud.datastore.KeyFactory revokedTokenKeyFactory =
-            datastore.newKeyFactory().setKind("RevokedToken");
 
     @POST
     @Consumes(MediaType.APPLICATION_JSON)
@@ -36,35 +34,54 @@ public class SessionLogoutResource {
     public Response sessionLogout(SessionLogoutData data) {
         if (data == null || data.authToken == null) {
             return Response.status(Status.BAD_REQUEST)
-                           .entity("Dados insuficientes para a operação.").build();
+                    .entity("Dados insuficientes para a operação.").build();
         }
         
         // Converter o token recebido para objeto AuthToken
         AuthToken token;
         try {
             token = gson.fromJson(data.authToken, AuthToken.class);
-        } catch(Exception e) {
+        } catch (Exception e) {
             return Response.status(Status.BAD_REQUEST)
-                           .entity("Token de autenticação inválido.").build();
+                    .entity("Token de autenticação inválido.").build();
         }
         
-        // Registar o token como revogado, armazenando o tokenID e o timestamp de revogação.
-        // Mesmo que o token ainda não esteja expirado, ele passa a ser considerado inválido.
+        Key targetKey = userKeyFactory.newKey(token.getUsername());
+        Transaction txn = datastore.newTransaction();
         try {
-            Key revokedKey = revokedTokenKeyFactory.newKey(token.getTokenID());
-            Entity revokedToken = Entity.newBuilder(revokedKey)
-                    .set("tokenID", token.getTokenID())
-                    .set("revokedAt", Timestamp.now())
+            Entity targetUser = txn.get(targetKey);
+            if (targetUser == null) {
+                txn.rollback();
+                return Response.status(Status.NOT_FOUND)
+                        .entity("Utilizador alvo não encontrado.").build();
+            }
+            
+            String activeToken = targetUser.contains("activeTokenID") ? targetUser.getString("activeTokenID") : "";
+            if (!token.getTokenID().equals(activeToken)) {
+                txn.rollback();
+                return Response.status(Status.FORBIDDEN)
+                        .entity("Sessão já encerrada.").build();
+            }
+            
+            Entity updatedUser = Entity.newBuilder(targetUser)
+                    .set("activeTokenID", "")
                     .build();
-            datastore.put(revokedToken);
+            txn.put(updatedUser);
+            txn.commit();
+            
+            LOG.info("Token revogado para o utilizador: " + token.getUsername());
+            return Response.ok("{\"message\":\"Logout efetuado com sucesso.\"}").build();
         } catch (DatastoreException e) {
-            LOG.log(Level.SEVERE, "Erro ao revogar token: " + e.getMessage());
+            if (txn.isActive()) {
+                txn.rollback();
+            }
+            LOG.log(Level.SEVERE, "Erro ao aceder ao datastore: " + e.getMessage());
             return Response.status(Status.INTERNAL_SERVER_ERROR)
-                           .entity("Erro interno ao efetuar logout.").build();
+                    .entity("Erro interno no servidor.").build();
+        } finally {
+            if (txn.isActive()) {
+                txn.rollback();
+            }
         }
-        
-        LOG.info("Token revogado para o utilizador: " + token.getUsername());
-        // Retorna mensagem de logout com sucesso.
-        return Response.ok("{\"message\":\"Logout efetuado com sucesso.\"}").build();
     }
 }

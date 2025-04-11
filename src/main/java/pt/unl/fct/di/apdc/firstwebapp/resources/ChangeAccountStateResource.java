@@ -24,7 +24,6 @@ public class ChangeAccountStateResource {
 
     private static final Logger LOG = Logger.getLogger(ChangeAccountStateResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    // KeyFactory para a entidade User (contas de utilizadores)
     private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
             datastore.newKeyFactory().setKind("User");
     private final Gson gson = new Gson();
@@ -33,7 +32,6 @@ public class ChangeAccountStateResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeAccountState(ChangeAccountStateData data) {
-        // Verificar se os dados enviados não estão nulos
         if (data == null || data.authToken == null || data.targetUsername == null || data.newState == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity("Dados insuficientes para a operação.").build();
@@ -48,23 +46,20 @@ public class ChangeAccountStateResource {
                     .entity("Token de autenticação inválido.").build();
         }
         
-        // Verifica se o token expirou
+        // Verificar se o token expirou
         long now = System.currentTimeMillis();
         if(now > callerToken.getValidity().getValidTo()){
             return Response.status(Status.FORBIDDEN)
                     .entity("Token expirado.").build();
         }
         
-        // Recuperar o role do utilizador que fez o pedido
         String callerRole = callerToken.getRole();
         
-        // Apenas ADMIN e BACKOFFICE têm permissão para alterar estados
         if(callerRole.equalsIgnoreCase("ENDUSER")){
             return Response.status(Status.FORBIDDEN)
                     .entity("Utilizador sem permissões para alteração de estado de contas.").build();
         }
         
-        // Recuperar a conta alvo do datastore
         Key targetKey = userKeyFactory.newKey(data.targetUsername);
         Entity targetUser;
         try {
@@ -83,8 +78,7 @@ public class ChangeAccountStateResource {
         String currentState = targetUser.contains("user_status") ? targetUser.getString("user_status") : "DESATIVADA";
         String newState = data.newState.toUpperCase();
         
-        // Validação das regras:
-        // Se o caller é BACKOFFICE, ele só pode alternar entre os estados ATIVADA e DESATIVADA.
+        // BACKOFFICE
         if (callerRole.equalsIgnoreCase("BACKOFFICE")) {
             if ( !((currentState.equalsIgnoreCase("ATIVADA") && newState.equalsIgnoreCase("DESATIVADA"))
                     || (currentState.equalsIgnoreCase("DESATIVADA") && newState.equalsIgnoreCase("ATIVADA"))) ) {
@@ -92,7 +86,6 @@ public class ChangeAccountStateResource {
                         .entity("Operação não permitida para um utilizador BACKOFFICE.").build();
             }
         }
-        // Caso seja ADMIN, não há restrições adicionais
         
         // Executar a alteração da entidade no Datastore
         Transaction txn = datastore.newTransaction();

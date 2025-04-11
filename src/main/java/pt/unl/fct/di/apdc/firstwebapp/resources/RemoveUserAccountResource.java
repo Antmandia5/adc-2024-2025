@@ -24,7 +24,6 @@ public class RemoveUserAccountResource {
 	
 	private static final Logger LOG = Logger.getLogger(RemoveUserAccountResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-	//A keyfactory para a entidade "User", indexada pelo username
 	private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
 			datastore.newKeyFactory().setKind("User");
 	private final Gson gson = new Gson();
@@ -33,7 +32,6 @@ public class RemoveUserAccountResource {
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response removeUserAccount(RemoveUserAccountData data) {
-		//Verificar se os dados enviados estao completos
 		if (data == null || data.authToken == null || data.targetUser == null) {
 			return Response.status(Status.BAD_REQUEST)
 					.entity("Dados insuficientes para a operação.").build();
@@ -62,7 +60,6 @@ public class RemoveUserAccountResource {
 					.entity("Utilizador sem permissões para remoção de contas.").build();
 		}
 		
-		// Obter conta a ser removida
 		Key targetKey = userKeyFactory.newKey(data.targetUser);
 		Entity targetUser;
 		try {
@@ -87,7 +84,6 @@ public class RemoveUserAccountResource {
 			}
 		}
 		
-		//Remover a conta usando uma transação para garantir integridade
 		Transaction txn = datastore.newTransaction();
 		try {
 			txn.delete(targetKey);

@@ -22,12 +22,9 @@ import pt.unl.fct.di.apdc.firstwebapp.util.ChangePasswordData;
 public class ChangePasswordResource {
 
     private static final Logger LOG = Logger.getLogger(ChangePasswordResource.class.getName());
-    // Nome do campo onde está armazenada a password (já em formato hashed)
     private static final String USER_PWD = "user_pwd";
     
-    // Instância do Datastore
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    // KeyFactory para a entidade "User", indexada pelo username
     private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
             datastore.newKeyFactory().setKind("User");
     
@@ -37,7 +34,6 @@ public class ChangePasswordResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changePassword(ChangePasswordData data) {
-        // Validação dos dados de entrada
         if (data == null || data.authToken == null || data.currentPassword == null ||
             data.newPassword == null || data.newPasswordConfirmation == null) {
             return Response.status(Status.BAD_REQUEST)
@@ -60,20 +56,17 @@ public class ChangePasswordResource {
                            .entity("Token expirado.").build();
         }
         
-        // O utilizador só pode alterar a sua própria password
         String callerUsername = callerToken.getUsername();
         if (callerUsername == null) {
             return Response.status(Status.BAD_REQUEST)
                            .entity("Token sem informação de utilizador.").build();
         }
         
-        // Verifica se a nova password coincide com a confirmação
         if (!data.newPassword.equals(data.newPasswordConfirmation)) {
             return Response.status(Status.BAD_REQUEST)
                            .entity("Nova password e confirmação não coincidem.").build();
         }
         
-        // Recuperar a entidade do utilizador no Datastore
         Key userKey = userKeyFactory.newKey(callerUsername);
         Entity userEntity = datastore.get(userKey);
         
@@ -89,7 +82,7 @@ public class ChangePasswordResource {
                            .entity("Password atual incorreta.").build();
         }
         
-        // Tudo certo: atualizar com a nova password (armazenada como hash)
+        // Atualizar com nova password
         Transaction txn = datastore.newTransaction();
         try {
             Entity updatedUser = Entity.newBuilder(userEntity)

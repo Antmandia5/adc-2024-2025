@@ -51,6 +51,7 @@ public class RegisterResource {
 			
             // Cria a entidade com os campos obrigatórios e os valores por omissão para role e estado
             Entity user = Entity.newBuilder(userKey)
+            		.set("user_username", data.username)
                     .set("user_name", data.name)
                     .set("user_pwd", DigestUtils.sha512Hex(data.password))
                     .set("user_email", data.email)
@@ -58,7 +59,7 @@ public class RegisterResource {
                     .set("user_profile", data.profile)
                     .set("user_creation_time", Timestamp.now())    
                     // Valores padrão para o registo de nova conta
-                    .set("user_role", "enduser")
+                    .set("user_role", "ENDUSER")
                     .set("user_status", "DESATIVADA")
                     .build();
 

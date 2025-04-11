@@ -27,7 +27,6 @@ public class ListUsersResource {
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
     private final Gson gson = new Gson();
 
-    // Função auxiliar para obter propriedade como String ou "NOT DEFINED"
     private String getStringProp(Entity user, String propName) {
         return user.contains(propName) ? user.getString(propName) : "NOT DEFINED";
     }
@@ -36,13 +35,11 @@ public class ListUsersResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response listUsers(ListUsersData data) {
-        // Validação dos dados de entrada
         if (data == null || data.authToken == null) {
             return Response.status(Status.BAD_REQUEST)
                            .entity("Dados insuficientes para a operação.").build();
         }
         
-        // Converter o token recebido para objeto AuthToken
         AuthToken callerToken;
         try {
             callerToken = gson.fromJson(data.authToken, AuthToken.class);
@@ -60,7 +57,6 @@ public class ListUsersResource {
         
         String callerRole = callerToken.getRole();
         
-        // Para simplificar, vamos buscar todas as entidades "User"
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind("User")
                 .build();
@@ -79,10 +75,11 @@ public class ListUsersResource {
             String profile = getStringProp(user, "user_profile");
             String status = getStringProp(user, "user_status");
             
-            if (callerRole.equalsIgnoreCase("ENDUSER")) {
-                // ENDUSER: listar apenas utilizadores com role ENDUSER,
+            if (callerRole.equalsIgnoreCase("ENDUSER") || callerRole.equalsIgnoreCase("PARTNER")) {
+                // ENDUSER /PARTNER: listar apenas utilizadores com role ENDUSER/PARTNER,
                 // perfil "público" e estado "ATIVADA"
-                if (role.equalsIgnoreCase("ENDUSER") &&
+                if ( (role.equalsIgnoreCase("ENDUSER") ||
+                	role.equalsIgnoreCase("PARTNER") ) &&
                     profile.equalsIgnoreCase("público") &&
                     status.equalsIgnoreCase("ATIVADA")) {
                     
@@ -90,7 +87,7 @@ public class ListUsersResource {
                 }
             } else if (callerRole.equalsIgnoreCase("BACKOFFICE")) {
                 // BACKOFFICE: listar todos os usuários com role ENDUSER, sem restrição de perfil/estado
-                if (role.equalsIgnoreCase("ENDUSER")) {
+                if (role.equalsIgnoreCase("ENDUSER") || role.equalsIgnoreCase("PARTNER")) {
                     filteredList.add(new FullUser(user));
                 }
             } else if (callerRole.equalsIgnoreCase("ADMIN")) {
@@ -102,7 +99,7 @@ public class ListUsersResource {
         return Response.ok(gson.toJson(filteredList)).build();
     }
     
-    // Classe auxiliar para utilizadores simples – para quem tem role ENDUSER
+    // Classe auxiliar para quem tem role ENDUSER/PARTNER
     public class SimpleUser {
         public String username;
         public String email;
@@ -115,7 +112,7 @@ public class ListUsersResource {
         }
     }
     
-    // Classe auxiliar para representar a listagem completa dos atributos (excetuando password e outros dados sensíveis)
+    // Classe auxiliar para representar a listagem completa dos atributos
     public class FullUser {
         public String username;
         public String email;

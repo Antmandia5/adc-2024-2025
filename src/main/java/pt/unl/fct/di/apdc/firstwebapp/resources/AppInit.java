@@ -9,7 +9,6 @@ public class AppInit {
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
 
     static {
-        // Será executado quando a aplicação carrega esta classe
         initRootUser();
     }
 
@@ -19,6 +18,7 @@ public class AppInit {
         // Só cria se ainda não existir
         if (datastore.get(rootKey) == null) {
             Entity rootUser = Entity.newBuilder(rootKey)
+            		.set("user_username", "root")
                     .set("user_name", "root")
                     .set("user_pwd", DigestUtils.sha512Hex("root"))
                     .set("user_email", "root@admin.pt")

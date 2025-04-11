@@ -24,7 +24,6 @@ public class ChangeRoleResource {
 
     private static final Logger LOG = Logger.getLogger(ChangeRoleResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    // KeyFactory para a entidade User (contas)
     private static final com.google.cloud.datastore.KeyFactory userKeyFactory = 
             datastore.newKeyFactory().setKind("User");
     
@@ -34,13 +33,11 @@ public class ChangeRoleResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeRole(ChangeRoleData data) {
-        // Primeira verificação: Dados obrigatórios
         if (data == null || data.authToken == null || data.targetUsername == null || data.newRole == null) {
             return Response.status(Status.BAD_REQUEST)
                     .entity("Dados insuficientes para a operação.").build();
         }
 
-        // Extrair o token do JSON utilizando Gson (assumindo que o token foi enviado da mesma forma que o gerado)
         AuthToken callerToken;
         try {
             callerToken = gson.fromJson(data.authToken, AuthToken.class);
@@ -49,7 +46,7 @@ public class ChangeRoleResource {
                     .entity("Token de autenticação inválido.").build();
         }
         
-        // Verificar se o token expirou (opcional, se o método isExpired ou similar for implementado)
+        // Verificar se o token expirou
         long now = System.currentTimeMillis();
         if(now > callerToken.getValidity().getValidTo()){
             return Response.status(Status.FORBIDDEN)
@@ -58,15 +55,11 @@ public class ChangeRoleResource {
         
         String callerRole = callerToken.getRole();
         
-        // Verificar se o utilizador que está fazendo a alteração tem permissão
-        // ADMIN: pode alterar qualquer conta
-        // BACKOFFICE: só pode alterar de ENDUSER para PARTNER ou vice-versa
         if(callerRole.equalsIgnoreCase("ENDUSER")){
             return Response.status(Status.FORBIDDEN)
                     .entity("Utilizador sem permissões para alteração de roles.").build();
         }
         
-        // Obter a conta alvo
         Key targetKey = userKeyFactory.newKey(data.targetUsername);
         Entity targetUser;
         try {
@@ -81,12 +74,8 @@ public class ChangeRoleResource {
                     .entity("Erro interno no servidor.").build();
         }
         
-        // Obter o role atual da conta alvo
         String currentRole = targetUser.contains("user_role") ? targetUser.getString("user_role") : "enduser";
         
-        // Validação das regras:
-        // Se caller é BACKOFFICE, então a alteração só é permitida se:
-        // (a) o role atual for ENDUSER e o novo for PARTNER, ou vice-versa.
         if(callerRole.equalsIgnoreCase("BACKOFFICE")){
             if( !( (currentRole.equalsIgnoreCase("ENDUSER") && data.newRole.equalsIgnoreCase("PARTNER"))
                 || (currentRole.equalsIgnoreCase("PARTNER") && data.newRole.equalsIgnoreCase("ENDUSER")) ) ){
@@ -94,14 +83,11 @@ public class ChangeRoleResource {
                         .entity("Operação não permitida para um utilizador BACKOFFICE.").build();
             }
         }
-        // Se for ADMIN, não há restrição.
-
-        // Realizar a alteração
+        
         Transaction txn = datastore.newTransaction();
         try {
-            // Criar nova entidade com o role alterado mantendo os demais atributos
             Entity updatedUser = Entity.newBuilder(targetUser)
-                    .set("user_role", data.newRole.toUpperCase()) // Armazenamos em caixa alta por convenção
+                    .set("user_role", data.newRole.toUpperCase())
                     .build();
             txn.put(updatedUser);
             txn.commit();

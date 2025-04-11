@@ -23,7 +23,6 @@ public class ChangeAccountAttributesResource {
 
     private static final Logger LOG = Logger.getLogger(ChangeAccountAttributesResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    // A KeyFactory para a entidade "User" indexada pelo username
     private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
             datastore.newKeyFactory().setKind("User");
     private final Gson gson = new Gson();
@@ -32,7 +31,6 @@ public class ChangeAccountAttributesResource {
     @Consumes(MediaType.APPLICATION_JSON)
     @Produces(MediaType.APPLICATION_JSON)
     public Response changeAccountAttributes(ChangeAccountAttributesData data) {
-        // Validação básica dos dados de entrada
         if (data == null || data.authToken == null || data.targetUser == null) {
             return Response.status(Status.BAD_REQUEST)
                            .entity("Dados insuficientes para a operação.").build();
@@ -85,10 +83,8 @@ public class ChangeAccountAttributesResource {
         try {
             Entity.Builder userBuilder = Entity.newBuilder(targetUserEntity);
 
-            // Atualizações permitidas para cada role:
-            // 1. ENDUSER: Pode atualizar password, phone, profile e atributos opcionais, mas NÃO pode modificar:
-            //    username, email, name, role, status.
-            if (callerRole.equalsIgnoreCase("ENDUSER")) {
+            // Atualizações permitidas para ENDUSER / PARTNER
+            if ( callerRole.equalsIgnoreCase("ENDUSER") || callerRole.equalsIgnoreCase("PARTNER") ) {
                 if(data.newPassword != null) {
                     userBuilder.set("user_pwd", DigestUtils.sha512Hex(data.newPassword));
                 }
@@ -118,7 +114,7 @@ public class ChangeAccountAttributesResource {
                     userBuilder.set("user_employer_nif", data.newEmployerNIF);
                 }
             }
-            // 2. BACKOFFICE: Pode modificar todos os atributos (exceto Username e Email) de contas com role ENDUSER ou PARTNER.
+            // BACKOFFICE
             else if (callerRole.equalsIgnoreCase("BACKOFFICE")) {
                 if(data.newPassword != null) {
                     userBuilder.set("user_pwd", DigestUtils.sha512Hex(data.newPassword));
@@ -129,10 +125,9 @@ public class ChangeAccountAttributesResource {
                 if(data.newProfile != null) {
                     userBuilder.set("user_profile", data.newProfile);
                 }
-                if(data.newName != null) {  // BACKOFFICE pode alterar o nome
+                if(data.newName != null) {
                     userBuilder.set("user_name", data.newName);
                 }
-                // BACKOFFICE não pode modificar o email
                 if(data.newCardNumber != null) {
                     userBuilder.set("user_card", data.newCardNumber);
                 }
@@ -151,9 +146,8 @@ public class ChangeAccountAttributesResource {
                 if(data.newEmployerNIF != null) {
                     userBuilder.set("user_employer_nif", data.newEmployerNIF);
                 }
-                // Caso o BACKOFFICE queira modificar o status, poderá fazê-lo somente via o endpoint apropriado
             }
-            // 3. ADMIN: Pode modificar todos os atributos, inclusive role e status, bem como nome e email.
+            // ADMIN
             else if (callerRole.equalsIgnoreCase("ADMIN")) {
                 if(data.newPassword != null) {
                     userBuilder.set("user_pwd", DigestUtils.sha512Hex(data.newPassword));

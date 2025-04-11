@@ -1,12 +1,10 @@
 package pt.unl.fct.di.apdc.firstwebapp.util;
 
 public class ChangeAccountAttributesData {
-	//Token de autenticacao em JSON enviado pelo cliente
 	public String authToken;
-	// Identificador da conta a modificar
 	public String targetUser;
 	
-	//Atributos a atualizar (opcionais)
+	//Atributos a atualizar
 	public String newPassword;
 	public String newPhone;
 	public String newProfile;
