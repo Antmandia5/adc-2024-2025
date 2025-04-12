@@ -51,7 +51,7 @@ public class ChangePasswordResource {
         
         // Verificar se o token expirou
         long now = System.currentTimeMillis();
-        if (now > callerToken.getValidity().getValidTo()) {
+        if (now > callerToken.getValidUntil()) {
             return Response.status(Status.FORBIDDEN)
                            .entity("Token expirado.").build();
         }
