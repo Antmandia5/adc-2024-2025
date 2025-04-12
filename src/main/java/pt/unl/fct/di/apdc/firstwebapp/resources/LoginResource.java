@@ -17,6 +17,25 @@ import com.google.cloud.datastore.StringValue;
 import com.google.cloud.datastore.Value;
 import com.google.gson.Gson;
 
+import org.apache.commons.codec.digest.DigestUtils;
+
+import com.google.cloud.Timestamp;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.Entity;
+import com.google.cloud.datastore.Key;
+import com.google.cloud.datastore.KeyFactory;
+import com.google.cloud.datastore.PathElement;
+import com.google.cloud.datastore.Query;
+import com.google.cloud.datastore.QueryResults;
+import com.google.cloud.datastore.StringValue;
+import com.google.cloud.datastore.StructuredQuery.CompositeFilter;
+import com.google.cloud.datastore.StructuredQuery.OrderBy;
+import com.google.cloud.datastore.StructuredQuery.PropertyFilter;
+import com.google.cloud.datastore.Transaction;
+import com.google.gson.Gson;
+
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -25,6 +44,7 @@ import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.servlet.http.HttpServletRequest;
 import pt.unl.fct.di.apdc.firstwebapp.util.AuthToken;
@@ -60,7 +80,7 @@ public class LoginResource {
 		LOG.fine(LOG_MESSAGE_LOGIN_ATTEMP + data.username);
 
 		Key userKey = userKeyFactory.newKey(data.username);
-
+    
 		Transaction txn = datastore.newTransaction();
 		try {
 			Entity user = txn.get(userKey);
@@ -109,4 +129,5 @@ public class LoginResource {
 			}
 		}
 	}
+
 }

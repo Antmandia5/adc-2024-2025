@@ -30,7 +30,6 @@ public class RegisterResource {
     private final Gson g = new Gson();
     
     AppInit init = new AppInit();
-
     public RegisterResource() {
         // Construtor padrão
     }	
