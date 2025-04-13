@@ -56,7 +56,7 @@ public class RemoveUserAccountResource {
 		
 		//Verificar se o token expirou
 		long now = System.currentTimeMillis();
-		if (now > callerToken.getValidUntil()) {
+		if (now > callerToken.getValidity().getValidTo()) {
 			return Response.status(Status.FORBIDDEN)
 					.entity("Token expirado.").build();
 		}

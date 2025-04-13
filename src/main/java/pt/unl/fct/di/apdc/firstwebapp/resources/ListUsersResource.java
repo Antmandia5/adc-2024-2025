@@ -59,7 +59,7 @@ public class ListUsersResource {
 
 		// Verificar se o token está expirado
 		long now = System.currentTimeMillis();
-		if (now > callerToken.getValidUntil()) {
+		if (now > callerToken.getValidity().getValidTo()) {
 			return Response.status(Status.FORBIDDEN)
 					.entity("Token expirado.").build();
 		}

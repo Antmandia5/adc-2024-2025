@@ -87,7 +87,9 @@ public class LoginResource {
 				Entity tokenEntity = Entity.newBuilder(tokenKey)
 						.set("username", data.username)
 						.set("role", role)
-						.set("validUntil", token.getValidUntil())
+						.set("validFrom", token.getValidity().getValidFrom())
+						.set("validTo", token.getValidity().getValidTo())
+						.set("verifier", token.getValidity().getVerifier())
 						.set("tokenID", newTokenID)
 						.build();
 				txn.put(tokenEntity);
