@@ -73,12 +73,15 @@ public class LoginResource {
 
 			String hashedPWD = user.getString(USER_PWD);
 			if (hashedPWD.equals(DigestUtils.sha512Hex(data.password))) {
-				String role = user.contains(USER_ROLE) ? user.getString(USER_ROLE) : "enduser";
-
+				String role = user.contains(USER_ROLE) ? user.getString(USER_ROLE) : "ENDUSER";
+				
 				// Cria o token com os dados do user e o role
 				String newTokenID = UUID.randomUUID().toString();
 				AuthToken token = new AuthToken(data.username, role, newTokenID);
-
+				
+				// Adicionar tokenID a utilizador
+				Entity updatedUser = Entity.newBuilder(user).set("tokenID", newTokenID).build();
+				
 				// Cria uma chave para o token
 				Key tokenKey = tokenKeyFactory.newKey(newTokenID);
 				Entity tokenEntity = Entity.newBuilder(tokenKey)
@@ -88,7 +91,7 @@ public class LoginResource {
 						.set("tokenID", newTokenID)
 						.build();
 				txn.put(tokenEntity);
-
+				txn.put(updatedUser);
 				txn.commit();
 
 				LOG.info(LOG_MESSAGE_LOGIN_SUCCESSFUL + data.username);

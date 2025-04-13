@@ -56,8 +56,7 @@ public class RegisterResource {
                     .set("user_pwd", DigestUtils.sha512Hex(data.password))
                     .set("user_email", data.email)
                     .set("user_phone", data.phone)
-                    .set("user_profile", data.profile)
-                    .set("user_creation_time", Timestamp.now())    
+                    .set("user_profile", data.profile)  
                     // Valores padrão para o registo de nova conta
                     .set("user_role", "ENDUSER")
                     .set("user_status", "DESATIVADA")

@@ -24,7 +24,6 @@ public class AppInit {
                     .set("user_email", "root@admin.pt")
                     .set("user_phone", "+351999999999")
                     .set("user_profile", "privado")
-                    .set("user_creation_time", Timestamp.now())
                     .set("user_role", "ADMIN")
                     .set("user_status", "ATIVADA")
                     .build();

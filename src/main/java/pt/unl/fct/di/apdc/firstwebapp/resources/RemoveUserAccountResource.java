@@ -24,8 +24,8 @@ public class RemoveUserAccountResource {
 	
 	private static final Logger LOG = Logger.getLogger(RemoveUserAccountResource.class.getName());
 	private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-	private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
-			datastore.newKeyFactory().setKind("User");
+	private static final com.google.cloud.datastore.KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
+	private static final com.google.cloud.datastore.KeyFactory tokenKeyFactory = datastore.newKeyFactory().setKind("AuthToken");
 	private final Gson gson = new Gson();
 	
 	@POST
@@ -45,6 +45,14 @@ public class RemoveUserAccountResource {
 			return Response.status(Status.BAD_REQUEST)
 					.entity("Token de autenticação inválido").build();
 		}
+		
+		// Verificar se o token está registado no Datastore
+        Key tokenKey = tokenKeyFactory.newKey(callerToken.getTokenID());
+        Entity tokenEntity = datastore.get(tokenKey);
+        if (tokenEntity == null) {
+            return Response.status(Status.FORBIDDEN)
+                           .entity("Token inválido ou sessão inexistente.").build();
+        }
 		
 		//Verificar se o token expirou
 		long now = System.currentTimeMillis();
@@ -86,6 +94,12 @@ public class RemoveUserAccountResource {
 		
 		Transaction txn = datastore.newTransaction();
 		try {
+			if (targetUser.contains("tokenID")) {
+		        String tokenId = targetUser.getString("tokenID");
+		        Key targetTokenKey = tokenKeyFactory.newKey(tokenId);
+		        txn.delete(targetTokenKey);
+		        LOG.info("Token removido: " + tokenId);
+		    }
 			txn.delete(targetKey);
 			txn.commit();
 			String successMsg = String.format("Conta %s removida com sucesso", data.targetUser);

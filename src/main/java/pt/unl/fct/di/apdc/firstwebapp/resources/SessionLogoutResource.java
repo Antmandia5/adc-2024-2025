@@ -7,8 +7,10 @@ import com.google.cloud.datastore.Entity;
 import com.google.cloud.datastore.Key;
 import com.google.cloud.datastore.Transaction;
 import com.google.gson.Gson;
+
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
@@ -16,6 +18,7 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
+
 import pt.unl.fct.di.apdc.firstwebapp.util.AuthToken;
 import pt.unl.fct.di.apdc.firstwebapp.util.SessionLogoutData;
 
@@ -24,8 +27,8 @@ public class SessionLogoutResource {
 
     private static final Logger LOG = Logger.getLogger(SessionLogoutResource.class.getName());
     private static final Datastore datastore = DatastoreOptions.getDefaultInstance().getService();
-    private static final com.google.cloud.datastore.KeyFactory userKeyFactory =
-            datastore.newKeyFactory().setKind("User");
+	private static final com.google.cloud.datastore.KeyFactory userKeyFactory = datastore.newKeyFactory().setKind("User");
+	private static final com.google.cloud.datastore.KeyFactory tokenKeyFactory = datastore.newKeyFactory().setKind("AuthToken");
     private final Gson gson = new Gson();
 
     @POST
@@ -36,8 +39,7 @@ public class SessionLogoutResource {
             return Response.status(Status.BAD_REQUEST)
                     .entity("Dados insuficientes para a operação.").build();
         }
-        
-        // Converter o token recebido para objeto AuthToken
+
         AuthToken token;
         try {
             token = gson.fromJson(data.authToken, AuthToken.class);
@@ -45,43 +47,34 @@ public class SessionLogoutResource {
             return Response.status(Status.BAD_REQUEST)
                     .entity("Token de autenticação inválido.").build();
         }
-        
-        Key targetKey = userKeyFactory.newKey(token.getUsername());
+
+        Key tokenKey = tokenKeyFactory.newKey(token.getTokenID());
+        Key userKey = userKeyFactory.newKey(token.getUsername());
+
         Transaction txn = datastore.newTransaction();
         try {
-            Entity targetUser = txn.get(targetKey);
-            if (targetUser == null) {
-                txn.rollback();
+            Entity tokenEntity = datastore.get(tokenKey);
+            if (tokenEntity == null) {
                 return Response.status(Status.NOT_FOUND)
-                        .entity("Utilizador alvo não encontrado.").build();
+                        .entity("Token não encontrado ou já removido.").build();
             }
             
-            String activeToken = targetUser.contains("activeTokenID") ? targetUser.getString("activeTokenID") : "";
-            if (!token.getTokenID().equals(activeToken)) {
-                txn.rollback();
-                return Response.status(Status.FORBIDDEN)
-                        .entity("Sessão já encerrada.").build();
-            }
+			// Remover tokenID a utilizador
+            Entity user = txn.get(userKey);
+			Entity updatedUser = Entity.newBuilder(user).set("tokenID", "").build();
+			
+            datastore.delete(tokenKey);
             
-            Entity updatedUser = Entity.newBuilder(targetUser)
-                    .set("activeTokenID", "")
-                    .build();
             txn.put(updatedUser);
-            txn.commit();
-            
-            LOG.info("Token revogado para o utilizador: " + token.getUsername());
+			txn.commit();
+
+            LOG.info("Token removido com sucesso: " + token.getTokenID());
             return Response.ok("{\"message\":\"Logout efetuado com sucesso.\"}").build();
         } catch (DatastoreException e) {
-            if (txn.isActive()) {
-                txn.rollback();
-            }
+        	txn.rollback();
             LOG.log(Level.SEVERE, "Erro ao aceder ao datastore: " + e.getMessage());
             return Response.status(Status.INTERNAL_SERVER_ERROR)
                     .entity("Erro interno no servidor.").build();
-        } finally {
-            if (txn.isActive()) {
-                txn.rollback();
-            }
         }
     }
 }
